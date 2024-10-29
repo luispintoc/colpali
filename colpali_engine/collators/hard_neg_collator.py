@@ -34,10 +34,11 @@ class HardNegCollator(VisualRetrieverCollator):
         for example in tmp_examples:
             pos_image = self.get_image_from_image_dataset(example["gold_index"])
             pos_query = example["query"]
+            pos_context = example["context"]
 
             # Randomly sample a negative image amongst the top 10
             neg_image = self.get_image_from_image_dataset(example["negs"][randint(0, 9)])
 
-            examples += [{"image": pos_image, "query": pos_query, "neg_image": neg_image}]
+            examples += [{"image": pos_image, "query": pos_query, "context": pos_context, "neg_image": neg_image}]
 
         return super().__call__(examples)

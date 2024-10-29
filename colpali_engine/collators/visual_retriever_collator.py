@@ -45,6 +45,7 @@ class VisualRetrieverCollator:
         """
         # Placeholders
         texts_query: Union[List[str], List[None], List[Union[str, None]]] = []  # some documents don't have a query
+        texts_context: Union[List[str], List[None], List[Union[str, None]]] = []  # some documents don't have a context
         images: List[Image] = []
         neg_images: List[Image] = []
 
@@ -54,6 +55,7 @@ class VisualRetrieverCollator:
         # Process each example
         for example in examples:
             texts_query.append(example["query"])
+            texts_context.append(example["context"])
             if example["image"] is None:
                 raise ValueError("Image is None - This collator does not support None images yet.")
 
@@ -91,6 +93,24 @@ class VisualRetrieverCollator:
                 suffix=self.suffix,
             )
 
+        # Process the context
+        batch_context= None
+
+        if all([t is None for t in texts_context]):
+            # print("All contexts are `None`. Returning `None` for all contexts.")
+            pass
+        # TODO
+        # elif any([t is None for t in texts_context]): 
+        #     # If it's the first query that is not None but the rest are None, then it's hard negatives.
+        #     raise ValueError("Some queries are None. This collator does not support None queries yet.")
+        else:
+            texts_context = cast(List[str], texts_context)
+            batch_context = self.processor.process_queries(
+                queries=texts_context,
+                max_length=self.max_length,
+                suffix=self.suffix,
+            )
+
         # Prefix each key with "doc_" or "query_" to avoid key conflicts
         batch_all = {f"doc_{k}": v for k, v in batch_doc.items()}
         del batch_doc
@@ -98,6 +118,10 @@ class VisualRetrieverCollator:
             batch_query = {f"query_{k}": v for k, v in batch_query.items()}
             batch_all.update(batch_query)
             del batch_query
+        if batch_context is not None:
+            batch_context = {f"context_{k}": v for k, v in batch_context.items()}
+            batch_all.update(batch_context)
+            del batch_context
         if batch_neg_doc is not None:
             batch_neg_doc = {f"neg_doc_{k}": v for k, v in batch_neg_doc.items()}
             batch_all.update(batch_neg_doc)
