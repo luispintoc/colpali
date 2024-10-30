@@ -10,6 +10,9 @@ class ContrastiveTrainer(Trainer):
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         query_outputs = model(input_ids=inputs["query_input_ids"], attention_mask=inputs["query_attention_mask"])
+        context_outputs = model(input_ids=inputs["context_input_ids"], attention_mask=inputs["context_attention_mask"])
+        assert query_outputs.shape == context_outputs.shape
+        query_outputs += context_outputs
         # feed only kwargs with 'doc_' prefix
         doc_outputs = model(**{k[4:]: v for k, v in inputs.items() if k.startswith("doc")})
         if "neg_doc_input_ids" in inputs:
@@ -26,9 +29,12 @@ class ContrastiveTrainer(Trainer):
             raise ValueError("prediction_step is only called with prediction_loss_only=True")
 
         with torch.no_grad():
+            query_outputs = model(input_ids=inputs["query_input_ids"], attention_mask=inputs["query_attention_mask"])
+            context_outputs = model(input_ids=inputs["context_input_ids"], attention_mask=inputs["context_attention_mask"])
+            assert query_outputs.shape == context_outputs.shape
+            query_outputs += context_outputs
             # feed only kwargs with 'doc_' prefix
             doc_outputs = model(**{k[4:]: v for k, v in inputs.items() if k.startswith("doc")})
-            query_outputs = model(input_ids=inputs["query_input_ids"], attention_mask=inputs["query_attention_mask"])
             if "neg_doc_input_ids" in inputs:
                 neg_doc_outputs = model(**{k[8:]: v for k, v in inputs.items() if k.startswith("neg_doc")})
                 loss = self.loss_func(query_outputs, doc_outputs, neg_doc_outputs)
